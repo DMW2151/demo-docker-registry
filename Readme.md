@@ -1,6 +1,7 @@
-# S.0 Intro
+# Intro
 
-I wanted to try to set up a private Docker registry that might be able to serve containers to evaluate models trained with different popular ML frameworks. Unlike the Kaggle model, where grading happens on the server, this involves testing model evaluation and grading on the server.
+I wanted to set up a private Docker registry that might be able to serve containers to evaluate models trained with different popular ML frameworks. 
+Unlike the Kaggle model, where grading happens on the server, this involves testing model evaluation and grading on the server. First step (04-07-2020) involves configuring a private registry to push pytorch, opencv, tensorflow, etc. containers.
 
 ## S.1. Deploy the Registry
 
@@ -30,13 +31,12 @@ docker service create --name registry \
 
 ## S.2. - Optional Nginx Config
 
-See: [Great Post](http://blog.johnray.io/nginx-reverse-proxy-for-your-docker-registry)
-
-See add `127.0.0.1 registry.localhost` to `/etc/hosts`
-
-export REGISTRY_CONTAINER=$( docker ps --format "{{.Names}}" | head -n 1)
+See this [great post](http://blog.johnray.io/nginx-reverse-proxy-for-your-docker-registry), configure nginx to reverse proxy localhost to a friendly name.
 
 ```bash
+# Get Last Running Container and Link to NGINX
+export REGISTRY_CONTAINER=$( docker ps --format "{{.Names}}" | head -n 1)
+
 docker run -d --restart=always --name nginx \
     -v $(pwd)/registry/conf/reg.conf:/etc/nginx/conf.d/default.conf \
     -v $(pwd)/registry/certs:/etc/nginx/certs \
@@ -46,16 +46,17 @@ docker run -d --restart=always --name nginx \
 
 ## S.3. Push to Registry
 
+On Mac-OS: `Error saving credentials: error storing credentials...` persists until OSX Keychain is locked and unlocked.
+
 ```bash
-# wtf Error saving credentials: error storing credentials - err: exit status 1, out: `error storing credentials - err: exit status 1, out: `The user name or passphrase you entered is not correct.``
 docker login registry.localhost:443
 
-# Replace regular ole python as grader: http://blog.johnray.io/nginx-reverse-proxy-for-your-docker-registry
+# Replace regular ole python as grader, sample ML environment
 docker tag python:3.7.4 registry.localhost/python_stable_grader
 docker push registry.localhost/python_stable_grader
 ```
 
-## Appendix: Notes on SSL + HTTP AUTH
+## Appendix: Notes on SSL + HTTP AUTH; prereqs for security stuff
 
 ```bash
 mkdir -p ./registry/auth ./registry/certs ./registry/data
