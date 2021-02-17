@@ -1,3 +1,11 @@
-/registry/auth/*
+# Params for HTTP auth
+/registry/auth/htpasswd
+
+# Certificate and Key
 /registry/certs/*
-registry/data/
+
+# Image Data
+/registry/data/*
+
+# NGINX Config
+/registry/conf/*
