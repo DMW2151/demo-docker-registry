@@ -4,23 +4,39 @@ I wanted to set up a private Docker registry that might be able to serve contain
 
 ## S 1.0 - Deploy the Registry
 
+The following generates a self signed cert, generates an htpasswd file, and then deploys the stack of Nginx and the registry to a swarm node. 
 
 ```bash
-./generate_http_auth.sh &&\
-    docker stack deploy \
+# This will work if testing on localhost ONLY
+bash ./auth/generate_http_auth.sh &&\
+    sudo docker stack deploy \
     --compose-file docker-compose.yml registry
 ```
 
-```bash
-# Log into the registry, upload a regular ole python container
-docker login ${DOCKER_IP}:5000
+This will almost certainly give you a x509 Error unless the registry is run on the same machine as the client. To handle for x509 errors, you'd want to use a real CA (like [LetsEncrypt](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) or something real-adjacent like mkcert. **For Development** one could just use `mkcert $DOCKER_HOST` on the client machine in lieu of the `openssl` command in the `./auth/generate_http_auth.sh` script.
 
-docker tag python:3.7.4 registry.localhost/python_stable_grader
-docker push registry.localhost/python_stable_grader
+The benefit of the included nginx configuration is that now http traffic can be upgraded to https and routed to the registry. Alternativley, all ports but `443` or `80` could be firewalled and all traffic routed to a variety of applications with the server and location blocks via nginx.
+
+```bash
+docker login ${DOCKER_IP}
+
+docker tag python:3.7.4 ${DOCKER_IP}/python_stable_grader
+docker push ${DOCKER_IP}/python_stable_grader
 ```
 
-## Resources
+Alternatively, you could elect not to reverse proxy at all, run the registry on `443` and have it handle SSL termination itself with the following command:
 
-### Nginx Config - Using as a Reverse Proxy
-
-- [Post](http://blog.johnray.io/nginx-reverse-proxy-for-your-docker-registry) on configuring nginx to reverse proxy localhost.
+```bash
+docker run -d \
+  -p 5000:5000 \
+  --restart=always \
+  --name registry \
+  -v "$(pwd)"/auth:/auth \
+  -e "REGISTRY_AUTH=htpasswd" \
+  -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+  -v "$(pwd)"/certs:/certs \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+  registry:2
+```
