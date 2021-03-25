@@ -4,7 +4,7 @@ I wanted to set up a private Docker registry that might be able to serve contain
 
 ## S 1.0 - Deploy the Registry
 
-The following generates a self signed cert, generates an htpasswd file, and then deploys the stack of Nginx and the registry to a swarm node. 
+The following generates a self signed cert, generates an htpasswd file, and then deploys the stack of Nginx and the registry to a swarm node. Redis is also included in the stack to get (slightly) improved performance on layer caching.
 
 ```bash
 # This will work if testing on localhost ONLY
@@ -18,17 +18,18 @@ This will almost certainly give you a x509 Error unless the registry is run on t
 The benefit of the included nginx configuration is that now http traffic can be upgraded to https and routed to the registry. Alternativley, all ports but `443` or `80` could be firewalled and all traffic routed to a variety of applications with the server and location blocks via nginx.
 
 ```bash
+# sudo docker login localhost/registry OR ${DOCKER_IP}/registry
 docker login ${DOCKER_IP}
 
 docker tag python:3.7.4 ${DOCKER_IP}/python_stable_grader
 docker push ${DOCKER_IP}/python_stable_grader
 ```
 
-Alternatively, you could elect not to reverse proxy at all, run the registry on `443` and have it handle SSL termination itself with the following command:
+Alternatively, you could elect not to use Nginx or Redis at all, just run the registry on `443` and have it handle SSL termination itself with the following command:
 
 ```bash
 docker run -d \
-  -p 5000:5000 \
+  -p 443:443 \
   --restart=always \
   --name registry \
   -v "$(pwd)"/auth:/auth \
